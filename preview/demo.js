@@ -1,5 +1,6 @@
 import {tr} from './english.mjs';
 const isEnglish=new URLSearchParams(location.search).get('lang')==='en';
+if(new URLSearchParams(location.search).get('layout')==='social')document.body.classList.add('social');
 const translate=value=>isEnglish?tr(value):value;
 const translatedProps=props=>props?{...props,...('children' in props?{children:Array.isArray(props.children)?props.children.map(translate):translate(props.children)}:{})}:props;
 const h=React.createElement;

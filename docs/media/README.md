@@ -14,3 +14,5 @@ Reproduce the browser preview: `pnpm preview`, then open http://127.0.0.1:4177. 
 ## English outreach previews
 
 conversation-en.png and recording-en.png are screenshots of the isolated browser preview at `?lang=en`, using the same compiled frontend with English translations applied by preview shims and synthetic conversation data. They are explicitly labeled English-localized previews. The shipped v0.4.1 plugin still uses a Chinese UI and Mandarin ASR; these images do not announce English-language product or speech support.
+
+conversation-en-social.png and recording-en-social.png use `?lang=en&layout=social` to center the panel so X gallery thumbnails keep the actual controls visible. The same preview/language disclosures apply.
