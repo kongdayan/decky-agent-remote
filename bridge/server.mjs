@@ -44,7 +44,7 @@ export function createServer(config, clients) {
     if (req.headers.origin) {req.resume();reply(403,{error:'Browser access disabled'});return;}
     try {
       const url=new URL(req.url,'http://bridge');
-      if (req.method==='GET'&&url.pathname==='/v1/health') return reply(200,{name:config.name,version:'0.4.0',speech:!!config.model,agents:Object.keys(clients)});
+      if (req.method==='GET'&&url.pathname==='/v1/health') return reply(200,{name:config.name,version:'0.4.1',speech:!!config.model,agents:Object.keys(clients)});
       const agent=url.searchParams.get('agent');
       if (req.method==='GET'&&url.pathname==='/v1/sessions') {
         if(!clients[agent])throw new Error('未知 Agent');return reply(200,{sessions:await clients[agent].list()});

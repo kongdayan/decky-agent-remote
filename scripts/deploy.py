@@ -16,7 +16,7 @@ subprocess.run(['pnpm', 'run', 'build'], cwd=root, check=True)
 with tempfile.TemporaryDirectory() as tmp:
     archive = Path(tmp) / 'agent-remote.tar.gz'
     with tarfile.open(archive, 'w:gz', format=tarfile.GNU_FORMAT) as tar:
-        for name in ['main.py', 'plugin.json', 'package.json', 'dist', 'LICENSE']:
+        for name in ['main.py', 'plugin.json', 'package.json', 'dist', 'LICENSE', 'LICENSES', 'THIRD_PARTY_NOTICES.md']:
             tar.add(root / name, arcname=name)
     subprocess.run(['scp', '-q', str(archive), host + ':/tmp/agent-remote-update.tar.gz'], check=True)
     command = '''sudo -n mkdir -p /home/deck/homebrew/plugins/agent-remote && sudo -n chown deck:deck /home/deck/homebrew/plugins/agent-remote && tar -xzf /tmp/agent-remote-update.tar.gz -C /home/deck/homebrew/plugins/agent-remote && rm /tmp/agent-remote-update.tar.gz && sudo -n systemctl restart plugin_loader.service'''

@@ -1,4 +1,4 @@
-# Validation — 0.4.0
+# Validation — 0.4.1
 
 Measured on 2026-10-25. This is a public preview, not a claim of certification across SteamOS releases.
 

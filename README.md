@@ -27,7 +27,7 @@ Follow the [complete setup guide](docs/SETUP.md) for actual commands, network ch
 
 ## Status and limits
 
-Public preview, version 0.4.0. Built from the official Decky plugin template under BSD-3-Clause. GitHub sideload distribution; no Decky Store approval is claimed. DSH adapter tested against 0.2.0-rc.2; its prerelease RPC can change. Codex desktop chats owned by another app-server may be read-only. Approval prompts must be handled on the execution machine. The UI is currently Chinese; English documentation is provided.
+Public preview, version 0.4.1. Built from the official Decky plugin template under BSD-3-Clause. GitHub sideload distribution; no Decky Store approval is claimed. DSH adapter tested against 0.2.0-rc.2; its prerelease RPC can change. Codex desktop chats owned by another app-server may be read-only. Approval prompts must be handled on the execution machine. The UI is currently Chinese; English documentation is provided.
 
 See [validation](docs/VALIDATION.md) for measured checks and untested cases, and [UX audit](docs/UX-AUDIT.md) for interaction decisions. Public screenshots use synthetic demo conversations; device-frame artwork is a labeled illustration.
 

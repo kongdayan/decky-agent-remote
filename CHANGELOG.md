@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.4.0 — 2026-10-25
+## 0.4.1 — 2026-10-25
+
+First public release. Includes bundled dependency licenses and attribution.
+
+### Changes since the local prototype
 
 - Open directly into the remembered conversation; latest replies, history and voice share one page.
 - Hold a configurable rear button to talk; release to transcribe and send. Short press opens the conversation. Optional preview before sending.

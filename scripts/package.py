@@ -7,8 +7,9 @@ import zipfile
 
 root = Path(__file__).resolve().parents[1]
 version = json.loads((root / 'package.json').read_text())['version']
-files = [root / n for n in ('main.py', 'plugin.json', 'package.json', 'LICENSE')]
+files = [root / n for n in ('main.py', 'plugin.json', 'package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.md')]
 files += sorted((root / 'dist').glob('**/*'))
+files += sorted((root / 'LICENSES').glob('**/*'))
 files = [p for p in files if p.is_file()]
 if not (root / 'dist/index.js').is_file():
     raise SystemExit('Run pnpm build first')
