@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {join,dirname} from 'node:path';
 const require=createRequire(import.meta.url),root=fileURLToPath(new URL('../',import.meta.url));
 const routes={
- '/':join(root,'preview/index.html'),'/demo.js':join(root,'preview/demo.js'),
+ '/':join(root,'preview/index.html'),'/english.mjs':join(root,'preview/english.mjs'),'/demo.js':join(root,'preview/demo.js'),
  '/plugin.js':join(root,'dist/index.js'),
  '/react.js':join(dirname(require.resolve('react/package.json')),'umd/react.production.min.js'),
  '/react-dom.js':join(dirname(require.resolve('react-dom/package.json')),'umd/react-dom.production.min.js'),

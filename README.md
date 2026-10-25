@@ -25,6 +25,8 @@ Talk to **remote DSH agents** without leaving Steam Deck Gaming Mode. Open one p
 
 Follow the [complete setup guide](docs/SETUP.md) for actual commands, network choices and troubleshooting. Credentials and models are configured locally and are never bundled. Use an encrypted/private transport; the bridge has remote agent access. Read [the security boundary](SECURITY.md).
 
+English-localized [conversation preview](docs/media/conversation-en.png) and [recording preview](docs/media/recording-en.png) use synthetic demo data. These previews do not change the current release language defaults.
+
 ## Status and limits
 
 Public preview, version 0.4.1. Built from the official Decky plugin template under BSD-3-Clause. GitHub sideload distribution; no Decky Store approval is claimed. DSH adapter tested against 0.2.0-rc.2; its prerelease RPC can change. Codex desktop chats owned by another app-server may be read-only. Approval prompts must be handled on the execution machine. The UI is currently Chinese; English documentation is provided.

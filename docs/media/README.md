@@ -10,3 +10,7 @@ Generation used the built-in image_gen tool, not an API/CLI key. Prompts:
 2. compositing / product-mockup: use conversation.png as the screen insert on a full cased Steam Deck, slight front perspective, slate studio background. Preserve the chat panel, Chinese text and blue button; fit excess empty space to the device aspect ratio. Outside text “Agent Remote” and “Screen preview · Device illustration”. No people, extra claims or personal information.
 
 Reproduce the browser preview: `pnpm preview`, then open http://127.0.0.1:4177. F8 simulates the rear button in the demo only; no microphone is accessed. Do not point the demo at a real bridge.
+
+## English outreach previews
+
+conversation-en.png and recording-en.png are screenshots of the isolated browser preview at `?lang=en`, using the same compiled frontend with English translations applied by preview shims and synthetic conversation data. They are explicitly labeled English-localized previews. The shipped v0.4.1 plugin still uses a Chinese UI and Mandarin ASR; these images do not announce English-language product or speech support.
