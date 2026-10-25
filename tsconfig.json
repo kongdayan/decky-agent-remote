@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "resolveJsonModule": true,
+    "rootDir": ".",
     "outDir": "dist",
     "module": "ESNext",
     "target": "ES2020",

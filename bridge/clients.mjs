@@ -93,11 +93,11 @@ export class CodexClient {
     }
     return {id:t.id,title:t.name || t.preview?.slice(0,80) || id,state:t.status?.type??'unknown',flags:t.status?.activeFlags??[],messages:messages.length?messages.slice(-6):this.recent.get(id)??[],live:t.status?.type!=='notLoaded'};
   }
-  async create(cwd) {
+  async create(cwd,language='zh-CN') {
     await this.connect();
     const {thread} = await this.call('thread/start',{cwd});
     this.owned.add(thread.id);
-    await this.call('thread/name/set',{threadId:thread.id,name:'Deck 远程语音 · '+new Date().toLocaleString('zh-CN')});
+    await this.call('thread/name/set',{threadId:thread.id,name:(language==='en'?'Deck voice · ':'Deck 远程语音 · ')+new Date().toLocaleString(language==='en'?'en':'zh-CN')});
     return {id:thread.id};
   }
   async history(id,cursor) {

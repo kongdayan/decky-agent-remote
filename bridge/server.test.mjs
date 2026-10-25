@@ -36,3 +36,30 @@ test('a transient DSH failure can retry with the same upstream request identity'
   assert.deepEqual(ids,['retry-dsh-1234','retry-dsh-1234']);
  }finally{await new Promise(r=>server.close(r));}
 });
+
+test('English and automatic speech avoid the Mandarin prompt and preserve original text',async()=>{
+ const {whisperArguments,speechLanguage}=await import('./server.mjs');
+ for(const language of ['en','auto']){
+  const args=whisperArguments('model','audio','out',language);
+  assert.equal(args[args.indexOf('-l')+1],language);
+  assert.ok(!args.includes('--prompt'));
+  assert.equal(normalizeTranscript('  Check ./Foo.ts — 遊戲  ',language),'Check ./Foo.ts — 遊戲');
+ }
+ assert.ok(whisperArguments('model','audio','out','zh').includes('--prompt'));
+ assert.throws(()=>speechLanguage('en --anything'));
+});
+
+test('speech language is validated before model execution and API errors match UI language',async()=>{
+ const server=createServer({token:'x'.repeat(48)},{dsh:{}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ try{
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const headers={Authorization:'Bearer '+'x'.repeat(48),'X-Agent-Language':'en'};
+  const health=await (await fetch(base+'/v1/health',{headers})).json();
+  assert.deepEqual(health.speechLanguages,['zh','en','auto']);
+  const invalid=await fetch(base+'/v1/transcribe?language=bad',{method:'POST',headers,body:'invalid'});
+  assert.equal(invalid.status,400);assert.equal((await invalid.json()).error,'Invalid language option');
+  const noModel=await fetch(base+'/v1/transcribe?language=en',{method:'POST',headers,body:'invalid'});
+  assert.equal((await noModel.json()).error,'The computer has no speech model configured');
+ }finally{await new Promise(r=>server.close(r));}
+});

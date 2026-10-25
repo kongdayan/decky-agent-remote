@@ -3,11 +3,12 @@ import { Button, ButtonItem, DropdownItem, ToggleField, TextField, Focusable, Co
 import { callable, definePlugin, toaster, addEventListener, removeEventListener } from '@decky/api';
 import { FaSatelliteDish } from 'react-icons/fa';
 import {createPushToTalk} from './ptt';
+import {t,setLanguage,agentName} from './i18n';
 
 declare const SteamClient:{Input:{RegisterForControllerInputMessages:(cb:(index:number,button:number,down:boolean)=>void)=>{unregister:()=>void}}};
 declare global {interface Window {DeckyPluginLoader?:{deckyState?:{setActivePlugin:(name:string)=>void}}}}
 
-type State = {hosts:{id:string;name:string;url:string}[];host:string;agent:string;session:string;hotkey:number;autoSend:boolean;phase:string;draft:string;last:string};
+type State = {hosts:{id:string;name:string;url:string}[];host:string;agent:string;session:string;hotkey:number;autoSend:boolean;phase:string;draft:string;last:string;lastKind:string;uiLanguage:'zh-CN'|'en';speechLanguage:'zh'|'en'|'auto'};
 type Message = {id?:string;role:string;text:string;time?:number};
 type Session = {id:string;title:string;state:string;flags?:string[];cwd?:string;live?:boolean;messages?:Message[]};
 type HistoryPage = {messages:Message[];nextCursor:string|null};
@@ -16,6 +17,7 @@ const removeHost=callable<[string],State>('remove_host');
 const capabilities=callable<[string],{agents:string[];speech:boolean}>('capabilities');
 const getState=callable<[],State>('get_state');
 const select=callable<[string,string,string],State>('select');
+const languagePreferences=callable<[string,string],State>('language_preferences');
 const preferences=callable<[number,boolean],State>('preferences');
 const sessions=callable<[string,string],{sessions:Session[]}>('sessions');
 const detail=callable<[string,string,string],Session>('detail');
@@ -33,14 +35,14 @@ let wantsLatest=false;
 let settingsView:ReturnType<typeof showModal>|undefined;
 const targetKey=(s:State)=>`${s.host}:${s.agent}:${s.session}`;
 const publish=()=>listeners.forEach(fn=>fn());
-const putState=(s:State)=>{current=s;publish();};
+const putState=(s:State)=>{current=s;setLanguage(s.uiLanguage);publish();};
 const putSession=(s:State,value:Session)=>{
   cache.delete(targetKey(s));cache.set(targetKey(s),value);
   if(cache.size>5)cache.delete(cache.keys().next().value!);
   publish();
 };
 const cached=()=>current?cache.get(targetKey(current)):undefined;
-const statusText=(s:string)=>({active:'执行中',idle:'已连接',waiting:'等待回复',systemError:'执行异常',notLoaded:'保存的会话'}[s]??s);
+const statusText=(s:string)=>({active:t("执行中"),idle:t("已连接"),waiting:t("等待回复"),systemError:t("执行异常"),notLoaded:t("保存的会话")}[s]??s);
 const notify=(title:string,body:string)=>toaster.toast({title,body,duration:4500});
 const fail=(e:unknown)=>notify('Agent Remote',String(e));
 const wrapped:CSSProperties={minWidth:0,maxWidth:'100%',whiteSpace:'pre-wrap',overflowWrap:'anywhere',lineHeight:1.5};
@@ -74,23 +76,25 @@ function SettingsModal({closeModal}:{closeModal?:()=>void}){
   };
   if(!s)return null;
   const locked=busy||s.phase!=='idle';
-  return <ConfirmModal strTitle="切换会话与设置" strOKButtonText="回到聊天" bAlertDialog onOK={closeModal} onCancel={closeModal}>
-    <DialogBody style={{maxHeight:'60vh',overflowY:'auto'}}>
-      <ButtonItem layout="below" disabled={locked} onClick={()=>{setEditing(v=>!v);setHostId('');setName('');setUrl('');setToken('');}}>{editing?'取消添加':'＋ 添加执行机器'}</ButtonItem>
+  return <ConfirmModal strTitle={t("切换会话与设置")} strOKButtonText={t("回到聊天")} bAlertDialog onOK={closeModal} onCancel={closeModal}>
+    <DialogBody style={{maxHeight:'48vh',overflowY:'auto'}}>
+      <DropdownItem label={t('界面语言')} layout="below" childrenContainerWidth="max" rgOptions={[{data:'zh-CN',label:'简体中文'},{data:'en',label:'English'}]} selectedOption={s.uiLanguage} disabled={locked} onChange={o=>void run(()=>languagePreferences(o.data,s.speechLanguage))}/>
+      <DropdownItem label={t('语音语言')} layout="below" childrenContainerWidth="max" rgOptions={[{data:'zh',label:t('中文（普通话）')},{data:'en',label:t('英语')},{data:'auto',label:t('自动识别')}]} selectedOption={s.speechLanguage} disabled={locked} onChange={o=>void run(()=>languagePreferences(s.uiLanguage,o.data))}/>
+      <ButtonItem layout="below" disabled={locked} onClick={()=>{setEditing(v=>!v);setHostId('');setName('');setUrl('');setToken('');}}>{editing?t("取消添加"):t("＋ 添加执行机器")}</ButtonItem>
       {editing&&<div>
-        <TextField label="机器名称" value={name} disabled={busy} onChange={e=>setName(e.target.value)} placeholder="我的电脑"/>
-        <TextField label="Bridge 地址" value={url} disabled={busy} onChange={e=>setUrl(e.target.value)} placeholder="http://主机地址:18765"/>
-        <TextField label="连接令牌" bIsPassword value={token} disabled={busy} onChange={e=>setToken(e.target.value)} placeholder={hostId?'留空保留原令牌':'从执行机器的 bridge 配置复制'}/>
-        <ButtonItem layout="below" disabled={locked||!name||!url||(!hostId&&!token)} onClick={()=>void run(async()=>{const state=await saveHost(hostId,name,url,token);setEditing(false);setToken('');return state;})}>连接并保存</ButtonItem>
+        <TextField label={t("机器名称")} value={name} disabled={busy} onChange={e=>setName(e.target.value)} placeholder={t("我的电脑")}/>
+        <TextField label={t("Bridge 地址")} value={url} disabled={busy} onChange={e=>setUrl(e.target.value)} placeholder={t("http://主机地址:18765")}/>
+        <TextField label={t("连接令牌")} bIsPassword value={token} disabled={busy} onChange={e=>setToken(e.target.value)} placeholder={hostId?t("留空保留原令牌"):t("从执行机器的 bridge 配置复制")}/>
+        <ButtonItem layout="below" disabled={locked||!name||!url||(!hostId&&!token)} onClick={()=>void run(async()=>{const state=await saveHost(hostId,name,url,token);setEditing(false);setToken('');return state;})}>{t("连接并保存")}</ButtonItem>
       </div>}
-      <DropdownItem label="机器" layout="below" childrenContainerWidth="max" rgOptions={s.hosts.map(h=>({data:h.id,label:h.name}))} selectedOption={s.host} disabled={locked} onChange={o=>void run(()=>select(o.data,s.agent,''))}/>
-      <DropdownItem label="Agent" layout="below" childrenContainerWidth="max" rgOptions={agents.map(data=>({data,label:data.toUpperCase()}))} selectedOption={s.agent} disabled={locked} onChange={o=>void run(()=>select(s.host,o.data,''))}/>
-      <DropdownItem key={`${s.host}:${s.agent}:${rows.length}`} label="会话" layout="below" childrenContainerWidth="max" selectedOption={s.session} strDefaultLabel="请选择会话" rgOptions={rows.map(r=>({data:r.id,label:<div style={wrapped}>{r.title}</div>}))} disabled={locked} onChange={o=>void run(async()=>{const state=await select(s.host,s.agent,o.data);putState(state);closeModal?.();return state;})}/>
-      <ButtonItem layout="below" disabled={locked} onClick={()=>void run(async()=>{const state=await newSession();putState(state);closeModal?.();return state;})}>新建会话并开始聊天</ButtonItem>
-      {!!s.host&&<ButtonItem layout="below" disabled={locked} onClick={()=>{const host=s.hosts.find(h=>h.id===s.host);if(host){setHostId(host.id);setName(host.name);setUrl(host.url);setToken('');setEditing(true);}}}>编辑当前机器</ButtonItem>}
-      {!!s.host&&<ButtonItem layout="below" disabled={locked} onClick={()=>showModal(<ConfirmModal strTitle="移除此机器？" strDescription="只移除 Deck 上的连接配置，不影响远端会话。" strOKButtonText="移除" onOK={()=>void run(()=>removeHost(s.host))}/>)}>移除当前机器</ButtonItem>}
-      <ToggleField label="松开后自动发送" checked={s.autoSend} disabled={locked} onChange={v=>void run(()=>preferences(s.hotkey,v))}/>
-      <DropdownItem label="说话背键" layout="below" childrenContainerWidth="max" rgOptions={[{data:33,label:'R4'},{data:32,label:'L4'},{data:45,label:'R5'},{data:44,label:'L5'},{data:-1,label:'关闭背键'}]} selectedOption={s.hotkey} disabled={locked} onChange={o=>void run(()=>preferences(o.data,s.autoSend))}/>
+      <DropdownItem label={t("机器")} layout="below" childrenContainerWidth="max" rgOptions={s.hosts.map(h=>({data:h.id,label:h.name}))} selectedOption={s.host} disabled={locked} onChange={o=>void run(()=>select(o.data,s.agent,''))}/>
+      <DropdownItem label="Agent" layout="below" childrenContainerWidth="max" rgOptions={agents.map(data=>({data,label:agentName(data)}))} selectedOption={s.agent} disabled={locked} onChange={o=>void run(()=>select(s.host,o.data,''))}/>
+      <DropdownItem key={`${s.host}:${s.agent}:${rows.length}`} label={t("会话")} layout="below" childrenContainerWidth="max" selectedOption={s.session} strDefaultLabel={t("请选择会话")} rgOptions={rows.map(r=>({data:r.id,label:<div style={wrapped}>{r.title}</div>}))} disabled={locked} onChange={o=>void run(async()=>{const state=await select(s.host,s.agent,o.data);putState(state);closeModal?.();return state;})}/>
+      <ButtonItem layout="below" disabled={locked} onClick={()=>void run(async()=>{const state=await newSession();putState(state);closeModal?.();return state;})}>{t("新建会话并开始聊天")}</ButtonItem>
+      {!!s.host&&<ButtonItem layout="below" disabled={locked} onClick={()=>{const host=s.hosts.find(h=>h.id===s.host);if(host){setHostId(host.id);setName(host.name);setUrl(host.url);setToken('');setEditing(true);}}}>{t("编辑当前机器")}</ButtonItem>}
+      {!!s.host&&<ButtonItem layout="below" disabled={locked} onClick={()=>showModal(<ConfirmModal strTitle={t("移除此机器？")} strDescription={t("只移除 Deck 上的连接配置，不影响远端会话。")} strOKButtonText={t("移除")} onOK={()=>void run(()=>removeHost(s.host))}/>)}>{t("移除当前机器")}</ButtonItem>}
+      <ToggleField label={t("松开后自动发送")} checked={s.autoSend} disabled={locked} onChange={v=>void run(()=>preferences(s.hotkey,v))}/>
+      <DropdownItem label={t("说话背键")} layout="below" childrenContainerWidth="max" rgOptions={[{data:33,label:'R4'},{data:32,label:'L4'},{data:45,label:'R5'},{data:44,label:'L5'},{data:-1,label:t("关闭背键")}]} selectedOption={s.hotkey} disabled={locked} onChange={o=>void run(()=>preferences(o.data,s.autoSend))}/>
       {error&&<div style={{...wrapped,color:'#ffb7ad'}}>{error}</div>}
     </DialogBody>
   </ConfirmModal>;
@@ -199,47 +203,47 @@ function Content(){
     }catch(e){if(version===generation.current)setError(String(e));}
     finally{if(alive.current)setLoadingOlder(false);}
   };
-  if(!s)return <div style={{padding:16,...hint}}>正在读取会话…</div>;
+  if(!s)return <div style={{padding:16,...hint}}>{t("正在读取会话…")}</div>;
   const lastReply=messages.filter(m=>m.role==='assistant').slice(-1)[0];
   const host=s.hosts.find(h=>h.id===s.host)?.name??s.host;
   const locked=busy||['transcribing','sending','creating'].includes(s.phase);
   const hotkeyName=({33:'R4',32:'L4',45:'R5',44:'L5'} as Record<number,string>)[s.hotkey];
-  const phaseText=s.phase==='recording'?`正在听 · ${s.autoSend?'结束后发送':'结束后预览文字'}`:s.phase==='transcribing'?'正在识别普通话…':s.phase==='sending'?'正在发送…':selected?.state==='active'?'Agent 正在执行…':hotkeyName?`按住 ${hotkeyName} 说话 · ${s.autoSend?'松开发送':'松开预览'}`:'点按钮说话，再点一次发送';
-  const voiceError=s.phase==='idle'&&s.last&&!s.last.startsWith('已发送：')&&!s.last.startsWith('识别完成，待发送：')?s.last:'';
+  const phaseText=s.phase==='recording'?t('正在听 · {action}',{action:t(s.autoSend?'结束后发送':'结束后预览文字')}):s.phase==='transcribing'?t('正在识别语音…'):s.phase==='sending'?t('正在发送…'):s.phase==='creating'?t('正在创建会话…'):selected?.state==='active'?t('Agent 正在执行…'):hotkeyName?t('按住 {key} 说话 · {action}',{key:hotkeyName,action:t(s.autoSend?'松开发送':'松开预览')}):t('点按钮说话，再点一次发送');
+  const voiceError=s.phase==='idle'&&s.lastKind==='error'?s.last:'';
   const displayError=operationError||voiceError||error;
-  const buttonText=s.phase==='recording'?(s.autoSend?'结束并发送':'结束并预览'):s.phase==='transcribing'?'正在识别…':s.phase==='sending'?'正在发送…':s.draft?'发送识别文字':'说话 / 发送';
-  return <Focusable flow-children="column" style={{height:'calc(100vh - 100px)',minHeight:0,display:'flex',flexDirection:'column',width:'100%',boxSizing:'border-box',padding:'0 16px 8px',gap:8}} onSecondaryActionDescription="录音 / 发送" onSecondaryButton={e=>{e.stopPropagation();if(!locked&&s.session&&selected?.live!==false)void run(async()=>{if(s.draft){await sendText(draft);return getState();}return s.phase==='recording'?recordStop(true):recordStart();});}}>
+  const buttonText=s.phase==='recording'?(s.autoSend?t("结束并发送"):t("结束并预览")):s.phase==='transcribing'?t("正在识别…"):s.phase==='sending'?t("正在发送…"):s.draft?t("发送识别文字"):t("说话 / 发送");
+  return <Focusable flow-children="column" style={{height:'calc(100vh - 100px)',minHeight:0,display:'flex',flexDirection:'column',width:'100%',boxSizing:'border-box',padding:'0 16px 8px',gap:8}} onSecondaryActionDescription={t("录音 / 发送")} onSecondaryButton={e=>{e.stopPropagation();if(!locked&&s.session&&selected?.live!==false)void run(async()=>{if(s.draft){await sendText(draft);return getState();}return s.phase==='recording'?recordStop(true):recordStart();});}}>
     <div style={{flex:'0 0 auto'}}>
       <Button style={{width:'100%',padding:'8px 10px',textAlign:'left',fontSize:13,background:'rgba(255,255,255,.07)',color:'#dbe2e9',border:'none'}} onClick={settings} disabled={s.phase!=='idle'}>
-        <div style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{selected?.title??'选择或新建会话'} ▾</div>
-        <div style={{fontSize:11,opacity:.65}}>{host} · {s.agent.toUpperCase()} · {online?statusText(selected?.state??'idle'):error?'连接异常':'连接中'}</div>
+        <div style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{selected?.title??t("选择或新建会话")} ▾</div>
+        <div style={{fontSize:11,opacity:.65}}>{host} · {agentName(s.agent)} · {online?statusText(selected?.state??'idle'):error?t("连接异常"):t("连接中")}</div>
       </Button>
     </div>
-    {newReply&&<Button style={{width:'100%',fontSize:12}} onClick={()=>{following.current=true;setNewReply(false);anchor.current='latest';setMessages(previous=>[...previous]);}}>有新回复 · 回到最新</Button>}
+    {newReply&&<Button style={{width:'100%',fontSize:12}} onClick={()=>{following.current=true;setNewReply(false);anchor.current='latest';setMessages(previous=>[...previous]);}}>{t("有新回复 · 回到最新")}</Button>}
     <Focusable ref={scroll} tabIndex={0} style={{flex:'1 1 auto',minHeight:0,overflowY:'auto',overflowX:'hidden',padding:'0 4px'}} onScroll={()=>{
       const area=scroll.current;if(!area)return;
       if(!programmatic.current){if(area.scrollTop<lastScroll.current-4)following.current=false;else if(area.scrollHeight-area.clientHeight-area.scrollTop<40)following.current=true;}
       lastScroll.current=area.scrollTop;
     }}>
-      {cursor&&<Button style={{width:'100%',fontSize:12,marginBottom:10}} disabled={loadingOlder} onClick={()=>void older()}>{loadingOlder?'正在读取…':'↑ 更早消息'}</Button>}
-      {!s.hosts.length&&<Button style={{width:'100%'}} onClick={settings}>添加执行机器</Button>}
-      {!s.session&&<div style={hint}>{s.hosts.length?'点上方选择会话，之后打开直接看回复。':'先添加执行机器，支持局域网或 Tailscale。'}</div>}
-      {!!s.session&&!messages.length&&<div style={hint}>{online?'还没有消息，直接说话开始。':'正在读取聊天…'}</div>}
+      {cursor&&<Button style={{width:'100%',fontSize:12,marginBottom:10}} disabled={loadingOlder} onClick={()=>void older()}>{loadingOlder?t("正在读取…"):t("↑ 更早消息")}</Button>}
+      {!s.hosts.length&&<Button style={{width:'100%'}} onClick={settings}>{t("添加执行机器")}</Button>}
+      {!s.session&&<div style={hint}>{s.hosts.length?t("点上方选择会话，之后打开直接看回复。"):t("先添加执行机器，支持局域网或 Tailscale。")}</div>}
+      {!!s.session&&!messages.length&&<div style={hint}>{online?t("还没有消息，直接说话开始。"):t("正在读取聊天…")}</div>}
       {messages.map((message,i)=><div key={messageKey(message)||i} ref={message===lastReply?latest:undefined} style={{...wrapped,marginBottom:14,fontSize:14}}>
-        <div style={{fontSize:11,opacity:.55,marginBottom:3}}>{message.role==='user'?'你':s.agent.toUpperCase()}{message.time?' · '+new Date(message.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):''}</div>
+        <div style={{fontSize:11,opacity:.55,marginBottom:3}}>{message.role==='user'?t("你"):agentName(s.agent)}{message.time?' · '+new Date(message.time).toLocaleTimeString(s.uiLanguage,{hour:'2-digit',minute:'2-digit'}):''}</div>
         <div style={{padding:'8px 10px',background:message.role==='user'?'rgba(70,125,170,.22)':'rgba(255,255,255,.05)',borderRadius:8}}>{message.text}</div>
       </div>)}
-      {s.phase==='transcribing'&&<div style={hint}>正在识别你的语音…</div>}
-      {s.draft&&<TextField label="识别文字" value={draft} onChange={e=>setDraft(e.target.value)}/>}
-      {displayError&&<div role="alert" style={{...wrapped,fontSize:12,color:'#ffb7ad'}}>{displayError}{error&&!operationError&&!voiceError&&<Button style={{width:'100%'}} onClick={()=>void refreshRef.current()}>重试连接</Button>}</div>}
-      {!!selected?.flags?.length&&<div style={hint}>需要在执行机器处理：{selected.flags.join('、')}</div>}
-      {selected&&!selected.live&&<div style={hint}>这是保存的桌面聊天记录，当前后台无法发送。点上方可切换会话。</div>}
+      {s.phase==='transcribing'&&<div style={hint}>{t("正在识别你的语音…")}</div>}
+      {s.draft&&<TextField label={t("识别文字")} value={draft} onChange={e=>setDraft(e.target.value)}/>}
+      {displayError&&<div role="alert" style={{...wrapped,fontSize:12,color:'#ffb7ad'}}>{displayError}{error&&!operationError&&!voiceError&&<Button style={{width:'100%'}} onClick={()=>void refreshRef.current()}>{t("重试连接")}</Button>}</div>}
+      {!!selected?.flags?.length&&<div style={hint}>{t("需要在执行机器处理：")}{selected.flags.join('、')}</div>}
+      {selected&&!selected.live&&<div style={hint}>{t("这是保存的桌面聊天记录，当前后台无法发送。点上方可切换会话。")}</div>}
     </Focusable>
     <div style={{flex:'0 0 auto',borderTop:'1px solid rgba(255,255,255,.12)',paddingTop:8}}>
       <Button preferredFocus style={{width:'100%',fontSize:15,padding:'10px 8px',background:s.phase==='recording'?'#bd414b':'#187cba',color:'white',border:'none'}} disabled={locked||!s.session||!!selected&&!selected.live} onClick={()=>void run(async()=>{if(s.draft){await sendText(draft);return getState();}return s.phase==='recording'?recordStop(true):recordStart();})}>{buttonText}</Button>
       <div style={{fontSize:11,opacity:.65,marginTop:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{phaseText}</div>
-      {s.phase==='recording'&&<Button style={{width:'100%',fontSize:12,marginTop:4}} onClick={()=>void run(cancelRecording)}>取消录音</Button>}
-      {!!s.draft&&<Button style={{width:'100%',fontSize:12,marginTop:4}} disabled={locked} onClick={()=>void run(discardDraft)}>放弃这段文字</Button>}
+      {s.phase==='recording'&&<Button style={{width:'100%',fontSize:12,marginTop:4}} onClick={()=>void run(cancelRecording)}>{t("取消录音")}</Button>}
+      {!!s.draft&&<Button style={{width:'100%',fontSize:12,marginTop:4}} disabled={locked} onClick={()=>void run(discardDraft)}>{t("放弃这段文字")}</Button>}
     </div>
   </Focusable>;
 }
@@ -249,12 +253,12 @@ export default definePlugin(()=>{
   void seed().catch(()=>{});
   const notice=addEventListener<[string,string]>('agent_notice',(title,body)=>{
     // In the conversation, status updates inline; background recording keeps its toast.
-    if(!listeners.size||title==='语音未发送')notify(title,body);
+    if(!listeners.size||title===t("语音未发送"))notify(title,body);
     void getState().then(putState).catch(()=>{});
   });
   const reply=addEventListener<[string,string,string,string,string]>('agent_reply',(host,agent,session,title,text)=>{
     void getState().then(async state=>{putState(state);if(state.host===host&&state.agent===agent&&state.session===session)putSession(state,await detail(host,agent,session));}).catch(()=>{});
-    toaster.toast({title:'收到回复 · '+title,body:text,duration:6000,onClick:showPanel});
+    toaster.toast({title:t("收到回复 · ")+title,body:text,duration:6000,onClick:showPanel});
   });
   const ptt=createPushToTalk({start:recordStart,stop:()=>recordStop(true),onState:putState,onTap:showPanel,onError:fail});
   let controller:{unregister:()=>void}|undefined;

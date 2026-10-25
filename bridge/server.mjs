@@ -10,8 +10,18 @@ import { isIP } from 'node:net';
 import { CodexClient,DshClient } from './clients.mjs';
 import * as OpenCC from 'opencc-js';
 const exec=promisify(execFile);
+const english=JSON.parse(await readFile(new URL('../locales/en.json',import.meta.url),'utf8'));
+const translateError=(message,language)=>language==='en'?(english[message]??message):message;
 const simplified=OpenCC.Converter({from:'tw',to:'cn'});
-export function normalizeTranscript(text) {return simplified(text).trim();}
+export function normalizeTranscript(text,language='zh') {return (language==='zh'?simplified(text):text).trim();}
+export function speechLanguage(value='zh') {
+  if(!['zh','en','auto'].includes(value))throw new Error('语言选项无效');
+  return value;
+}
+export function whisperArguments(model,wav,out,language='zh') {
+  speechLanguage(language);
+  return ['-m',model,'-f',wav,'-l',language,...(language==='zh'?['--prompt','以下是普通话语音，请使用简体中文准确转写。']:[]),'-otxt','-of',out,'-nt','-np'];
+}
 
 export function authorized(header, token) {
   const a=Buffer.from(header??''); const b=Buffer.from(`Bearer ${token}`);
@@ -20,7 +30,8 @@ export function authorized(header, token) {
 export function validateMessage(body) {
   if (!['dsh','codex'].includes(body.agent)||typeof body.session!=='string'||!body.session||body.session.length>160||typeof body.text!=='string'||!body.text.trim()||body.text.length>20000) throw new Error('无效的目标或消息');
 }
-export async function transcribe(audio, config) {
+export async function transcribe(audio, config, language='zh') {
+  speechLanguage(language);
   if (audio.length<1000 || audio.toString('ascii',0,4)!=='RIFF' || audio.toString('ascii',8,12)!=='WAVE') throw new Error('需要 WAV 录音');
   const dir=await mkdtemp(join(tmpdir(),'decky-voice-'));
   try {
@@ -30,8 +41,8 @@ export async function transcribe(audio, config) {
     const {stdout}=await exec(config.ffmpeg??'ffmpeg',['-hide_banner','-i',wav,'-af','volumedetect','-f','null','-'],{timeout:10000}).then(r=>({stdout:r.stderr}));
     const peak=Number(/max_volume: ([\d.-]+) dB/.exec(stdout)?.[1]??-100);
     if (peak < -45) throw new Error('录音过轻或没有声音，请靠近麦克风重试');
-    await exec(config.whisper??'whisper-cli',['-m',config.model,'-f',wav,'-l','zh','--prompt','以下是普通话语音，请使用简体中文准确转写。','-otxt','-of',out,'-nt','-np'],{timeout:180000,maxBuffer:2*1024*1024});
-    const text=normalizeTranscript(await readFile(out+'.txt','utf8'));
+    await exec(config.whisper??'whisper-cli',whisperArguments(config.model,wav,out,language),{timeout:180000,maxBuffer:2*1024*1024});
+    const text=normalizeTranscript(await readFile(out+'.txt','utf8'),language);
     if (!text || /^[\s\[\]()（），。！？!?.]*(?:BLANK_AUDIO|silence|无声)[\s\[\]()（），。！？!?.]*$/i.test(text)) throw new Error('没有识别到语音');
     return text;
   } finally { await rm(dir,{recursive:true,force:true}); }
@@ -39,12 +50,12 @@ export async function transcribe(audio, config) {
 export function createServer(config, clients) {
   const inFlight=new Map(); let asrBusy=false;
   return http.createServer(async(req,res)=>{
-    const reply=(status,value)=>{if(res.destroyed||res.writableEnded)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
+    const reply=(status,value)=>{if(value.error)value={...value,error:translateError(value.error,req.headers['x-agent-language'])};if(res.destroyed||res.writableEnded)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
     if (!authorized(req.headers.authorization,config.token)) { req.resume();reply(401,{error:'Unauthorized'});return; }
     if (req.headers.origin) {req.resume();reply(403,{error:'Browser access disabled'});return;}
     try {
       const url=new URL(req.url,'http://bridge');
-      if (req.method==='GET'&&url.pathname==='/v1/health') return reply(200,{name:config.name,version:'0.4.1',speech:!!config.model,agents:Object.keys(clients)});
+      if (req.method==='GET'&&url.pathname==='/v1/health') return reply(200,{name:config.name,version:'0.5.0',speech:!!config.model,speechLanguages:['zh','en','auto'],agents:Object.keys(clients)});
       const agent=url.searchParams.get('agent');
       if (req.method==='GET'&&url.pathname==='/v1/sessions') {
         if(!clients[agent])throw new Error('未知 Agent');return reply(200,{sessions:await clients[agent].list()});
@@ -63,14 +74,15 @@ export function createServer(config, clients) {
       for await (const chunk of req) {length+=chunk.length;if(length>limit)throw new Error('录音过大');chunks.push(chunk);}
       const bytes=Buffer.concat(chunks);
       if(url.pathname==='/v1/transcribe') {
+        const language=speechLanguage(url.searchParams.get('language')??'zh');
         if(!config.model)throw new Error('执行机器尚未配置语音模型');
         if(asrBusy)return reply(409,{error:'正在识别另一段录音'});
-        asrBusy=true;try {return reply(200,{text:await transcribe(bytes,config)});}finally{asrBusy=false;}
+        asrBusy=true;try {return reply(200,{text:await transcribe(bytes,config,language)});}finally{asrBusy=false;}
       }
       const b=JSON.parse(bytes.toString());
       if(url.pathname==='/v1/new') {
         if(!clients[b.agent])throw new Error('未知 Agent');
-        return reply(200,await clients[b.agent].create(config.workspace??homedir()));
+        return reply(200,await clients[b.agent].create(config.workspace??homedir(),req.headers['x-agent-language']));
       }
       validateMessage(b);
       if(!clients[b.agent])throw new Error('Agent 未启用');

@@ -92,3 +92,51 @@ class PairingPrivacy(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(p.draft, '请继续检查')
         self.assertEqual(p.draft_request_id, 'retry-fixture-1234')
         self.assertEqual(p.phase, 'idle')
+
+class LanguagePreferences(unittest.IsolatedAsyncioTestCase):
+    async def test_upgrade_defaults_and_saved_language_are_independent_of_chat(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p = module.Plugin()
+            p.config = {'hosts': [], 'host': '', 'agent': 'dsh', 'session': 'keep-this-session'}
+            p.settings = Path(directory)
+            p.lock = asyncio.Lock()
+            p.phase = 'idle'
+            p.draft = 'Keep my original text 原文'
+            p.last = ''
+            old = await p.get_state()
+            self.assertEqual((old['uiLanguage'], old['speechLanguage']), ('zh-CN', 'zh'))
+            new = await p.language_preferences('en', 'auto')
+            self.assertEqual((new['uiLanguage'], new['speechLanguage']), ('en', 'auto'))
+            self.assertEqual(new['session'], 'keep-this-session')
+            self.assertEqual(new['draft'], p.draft)
+            self.assertEqual(json.loads((p.settings / 'hosts.json').read_text())['uiLanguage'], 'en')
+            self.assertEqual(p._t('消息不能为空'), 'Message cannot be empty')
+            self.assertEqual(p._t(p.draft), p.draft)
+            p.phase = 'transcribing'
+            with self.assertRaises(RuntimeError):
+                await p.language_preferences('zh-CN', 'zh')
+            self.assertEqual(p.config['speechLanguage'], 'auto')
+            p.phase = 'idle'
+            with self.assertRaises(ValueError):
+                await p.language_preferences('en', 'bad')
+
+    async def test_recording_uses_snapshotted_speech_language_and_structured_draft_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p = module.Plugin()
+            p.config = {'hosts': [{'id': 'host', 'name': 'Computer', 'url': 'http://192.0.2.10:18765'}], 'host': 'host', 'agent': 'dsh', 'session': 'chat', 'uiLanguage': 'en', 'speechLanguage': 'zh', 'autoSend': False}
+            p.lock = asyncio.Lock()
+            p.phase = 'recording'
+            p.audio = Path(directory) / 'voice.wav'
+            p.audio.write_bytes(b'fixture')
+            p.started = module.time.monotonic() - 2
+            p.record_target = ('host', 'dsh', 'chat')
+            p.record_language = 'en'
+            p.limit_task = types.SimpleNamespace(cancel=lambda: None)
+            p.recorder = types.SimpleNamespace(send_signal=lambda _: None, wait=AsyncMock())
+            p._request = AsyncMock(return_value={'text': 'Keep ./Foo.ts unchanged'})
+            p.closing = False
+            state = await p.record_stop(False)
+            self.assertEqual(p._request.await_args.args[1], '/v1/transcribe?language=en')
+            self.assertEqual(state['lastKind'], 'draft')
+            self.assertEqual(state['draft'], 'Keep ./Foo.ts unchanged')
+            self.assertFalse(p.audio.exists())

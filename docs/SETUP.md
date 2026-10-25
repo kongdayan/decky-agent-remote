@@ -31,7 +31,9 @@ For development, `pnpm build && python3 scripts/package.py` creates the same all
 
 ## 3. Pair and use
 
-Open **… → Decky → Agent Remote → 添加执行机器**. Enter a name, bridge URL and its token, then **连接并保存**. The connection is checked before saving. Select DSH, select or create a session. It remembers this selection.
+Open **… → Decky → Agent Remote → 添加执行机器**. Enter a name, bridge URL and its token, then **连接并保存**. The connection is checked before saving. Select **DeepSeek Harness**, then select or create a session. It remembers this selection.
+
+At the top of conversation settings, choose **Interface language / 界面语言 → English / 简体中文** and **Speech language / 语音语言 → Chinese (Mandarin) / English / Auto-detect** independently. Changes apply immediately and persist on Deck. Existing installations retain Chinese/Mandarin defaults. Use a multilingual Whisper model; `.en` models support English only. Auto-detect avoids forcing Mandarin or English, but very short recordings can be ambiguous. These controls are disabled while recording, transcribing, creating a conversation or sending, so a task keeps its original language and target.
 
 - Open the panel: see the latest reply immediately, with the conversation above it.
 - Hold R4 (default) for at least 300 ms: start talking. Release: recognize and send to the selected session. A short press opens the panel without recording.

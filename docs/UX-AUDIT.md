@@ -20,3 +20,12 @@ Flow map: first open → add machine → verify/save → select/create DSH chat 
 Implementation uses @decky/ui Focusable / Button / TextField / DropdownItem and native Decky modals; no custom navigation stack. Conversation has a bounded scrolling region and a fixed footer. Critical errors are visible text and role=alert; state is expressed in words, not only color. Rear buttons are configurable because game mappings differ. Timestamps use the device timezone. There is no onboarding carousel, account signup, or required Tailscale installation.
 
 Static skill scanner detected no known mobile framework signals; it cannot validate Decky controller behavior. Typechecking, state-machine tests, backend tests and a browser fixture supplement manual hardware checks. See VALIDATION.md for current evidence and limits. Screen-reader support, all Steam Input layouts and all SteamOS/Decky versions are not certified.
+
+
+## 0.5.0 internationalization follow-up
+
+P1: English promotion previously translated only the browser shims; the actual plugin and ASR remained Chinese/Mandarin. Product translations now cover chat, settings, owned errors and notifications, with independently persisted UI/speech choices. Native Steam controls retain Steam's language. User messages and titles retain their original text.
+
+P2: The native settings dialog extended beneath Steam's button hints at the tested viewport. Limit its scroll body to 48vh; the Back to chat button now remains visible. Language controls appear first. Existing one-page chat and rear-button behavior remain.
+
+The static UX scanner reported no matching static signals (this is a Decky React plugin, not a detected mobile framework). Verification used the compiled preview and the actual Deck Steam/Decky renderer, including immediate switching, persistence after restart, full-name DeepSeek Harness branding, conversation selection and visible footer. Physical microphone acoustics and every in-game input mapping were not re-certified in this follow-up.

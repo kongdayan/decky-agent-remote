@@ -1,7 +1,7 @@
 {
   "name": "decky-agent-remote",
-  "version": "0.4.1",
-  "description": "Talk to remote DSH agents from Steam Deck Gaming Mode",
+  "version": "0.5.0",
+  "description": "Talk to DeepSeek Harness (DSH) agents from Steam Deck in English or Chinese",
   "type": "module",
   "scripts": {
     "build": "rollup -c",

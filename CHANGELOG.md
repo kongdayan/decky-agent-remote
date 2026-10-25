@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-25
+
+- Ship real English and Simplified Chinese UI, including settings, notifications and owned errors; preserve chat text.
+- Independently save UI and speech languages; choose Mandarin, English or auto-detect. Snapshot the speech language when recording starts.
+- Remove the forced Mandarin prompt and Chinese normalization for English / automatic speech.
+- Identify DeepSeek Harness by its full name in the plugin and public introduction.
+- Replace preview-only translation shims with the shipped product translations.
+- Verify Chinese, English and auto-detect audio from a real Deck through local Whisper and real DSH replies; see validation details.
+
 ## 0.4.1 — 2026-10-25
 
 First public release. Includes bundled dependency licenses and attribution.
