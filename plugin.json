@@ -1,0 +1,14 @@
+{
+  "name": "Agent Remote",
+  "author": "kongdayan",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": [
+      "remote",
+      "voice"
+    ],
+    "description": "Read replies and talk to remote DSH agents from Gaming Mode. Optional Codex and Tailscale support.",
+    "image": "https://raw.githubusercontent.com/kongdayan/decky-agent-remote/main/docs/media/hero.png"
+  }
+}
